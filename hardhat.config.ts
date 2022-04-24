@@ -7,6 +7,7 @@ import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
 import { formatEther, formatUnits, parseEther, parseUnits } from "ethers/lib/utils";
+import { BigNumber } from "ethers";
 
 dotenv.config();
 
@@ -47,28 +48,29 @@ task("add-liquidity-eth", "Create pool (WETH-MAXT) if it doesn't exist and add l
   .addParam("amountweth")
   .addParam("amountmaxt")
   .setAction(async ({amountweth, amountmaxt}, hre) => {
+    const [signer] = await hre.ethers.getSigners();
     const uniRouter = await hre.ethers.getContractAt("IUniswapV2Router02", process.env.UNISWAP_ROUTER_ADDRESS ?? "");
 
     const [amountToken, amountETH, liquidity] = await uniRouter.callStatic.addLiquidityETH(
       process.env.MAXTOKEN_ADDRESS,
-      parseUnits(amountmaxt, 3),
+      parseUnits(amountmaxt, 18),
       0,
       0,
-      process.env.SIGNER,
+      await signer.getAddress(),
       Date.now() + 60*60*24,
       { value : parseEther(amountweth) }
-    );
+    );BigNumber.from
     console.log("CallStatic returned:", 
-          "\nMAXT:", formatUnits(amountToken, 3), 
+          "\nMAXT:", formatUnits(amountToken, 18), 
           "\nWETH:", formatEther(amountETH),
-          "\nLiquidity", formatUnits(liquidity, 18));
+          "\nLiquidity (UNI):", formatUnits(liquidity, 18));
 
     const tx = await uniRouter.addLiquidityETH(
       process.env.MAXTOKEN_ADDRESS,
-      parseUnits(amountmaxt, 3),
+      parseUnits(amountmaxt, 18),
       0,
       0,
-      process.env.SIGNER,
+      await signer.getAddress(),
       Date.now() + 60*60*24,
       { value : parseEther(amountweth) }
     );
@@ -124,7 +126,7 @@ task("staking-claim", "Claim reward tokens from MaxStaking contract")
     const rewadToken = await hre.ethers.getContractAt("IERC20", process.env.MAXTOKEN_ADDRESS ?? "");
 
     const balanceBefore = await rewadToken.balanceOf(await signer.getAddress());
-    console.log("Reward balance before:", formatUnits(balanceBefore, 3), "MAXT");
+    console.log("Reward balance before:", formatUnits(balanceBefore, 18), "MAXT");
     
     await staking.callStatic.claim();
     console.log("CallStatic success");
@@ -133,7 +135,7 @@ task("staking-claim", "Claim reward tokens from MaxStaking contract")
     const txRes = await tx.wait();
 
     const balanceAfter = await rewadToken.balanceOf(await signer.getAddress());
-    console.log("Reward balance after:", formatUnits(balanceAfter, 3), "MAXT");
+    console.log("Reward balance after:", formatUnits(balanceAfter, 18), "MAXT");
 
     const gasCost = getGasCost(txRes);
     console.log("Gas cost: ", formatEther(gasCost), "ETH");
@@ -167,10 +169,28 @@ task("staking-getstake", "Get your stake info")
     const staking = await hre.ethers.getContractAt("MaxStaking", process.env.STAKING_ADDRESS ?? "");
 
     const [tokenAmount, creationTime, reward, rewardsCount] = await staking.stakes(await signer.getAddress());
-    console.log("Token amount: ", formatUnits(tokenAmount, 18));
-    console.log("Creation time: ", new Date((creationTime).toNumber() * 1000).toDateString());
-    console.log("Reward: ", formatUnits(reward, 3));
+    console.log("Token amount: ", formatUnits(tokenAmount, 18), "UNI");
+    console.log("Creation time: ", new Date((creationTime).toNumber() * 1000).toLocaleString());
+    console.log("Reward: ", formatUnits(reward, 18), "MAXT");
     console.log("Reward count: ", rewardsCount.toNumber());
+});
+
+task("staking-info", "Staking contract info")
+  .setAction(async (taskArgs, hre) => {
+    const staking = await hre.ethers.getContractAt("MaxStaking", process.env.STAKING_ADDRESS ?? "");
+    const stakingToken = await hre.ethers.getContractAt("IERC20", process.env.PAIR_ADDRESS ?? "");
+    const rewardToken = await hre.ethers.getContractAt("IERC20", process.env.MAXTOKEN_ADDRESS ?? "");
+
+    console.log("tokenRewards contract: ", await staking.tokenRewards());
+    console.log("tokenStake contract: ", await staking.tokenStake());
+    console.log("rewardPeriod: ", (await staking.rewardPeriod()).toNumber(), "seconds");
+    console.log("frozenPeriod: ", (await staking.frozenPeriod()).toNumber(), "seconds");
+    
+    console.log("rewardFor1TokenUnit: ", formatUnits(await staking.rewardFor1TokenUnit(), 18), "MAXT");
+    console.log("tokenRewardDecimals: ", (await staking.tokenRewardDecimals()).toNumber());
+    console.log("owner: ", await staking.owner());
+    console.log("Staking contract UNI balance: ", formatUnits(await stakingToken.balanceOf(staking.address), 18));
+    console.log("Staking contract MAXT balance: ", formatUnits(await rewardToken.balanceOf(staking.address), 18));
 });
 
 task("staking-update", "Update your stake info")
@@ -185,26 +205,11 @@ task("staking-update", "Update your stake info")
     console.log("Gas cost: ", formatEther(gasCost), "ETH");
 
     const [tokenAmount, creationTime, reward, rewardsCount] = await staking.stakes(await signer.getAddress());
-    console.log("Token amount: ", formatUnits(tokenAmount, 18));
-    console.log("Creation time: ", new Date((creationTime).toNumber() * 1000).toDateString());
-    console.log("Reward: ", formatUnits(reward, 3));
+    console.log("Token amount: ", formatUnits(tokenAmount, 18), "UNI");
+    console.log("Creation time: ", new Date((creationTime).toNumber() * 1000).toLocaleString());
+    console.log("Reward: ", formatUnits(reward, 18), "MAXT");
     console.log("Reward count: ", rewardsCount.toNumber());
 });
-
-task("staking-change-reward-period", "Get your stake info")
-  .setAction(async (taskArgs, hre) => {
-    const [signer] = await hre.ethers.getSigners();
-    const staking = await hre.ethers.getContractAt("MaxStaking", process.env.STAKING_ADDRESS ?? "");
-
-    const [tokenAmount, creationTime, reward, rewardsCount] = await staking.stakes(await signer.getAddress());
-    console.log("Token amount: ", formatUnits(tokenAmount, 18));
-    console.log("Creation time: ", new Date((creationTime).toNumber() * 1000).toDateString());
-    console.log("Reward: ", formatUnits(reward, 3));
-    console.log("Reward count: ", rewardsCount.toNumber());
-});
-
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
 
 const config: HardhatUserConfig = {
   solidity: "0.8.4",

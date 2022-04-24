@@ -65,11 +65,18 @@ describe("MaxStaking", function () {
     await expect(staking0Task).to.be.revertedWith("Reward period should be > 0");
   });
 
-  it("fails deploy when rewardPercent=0",async () => {
+  it("fails deploy when rewardFor1TokenUnit=0",async () => {
     const Staking0 = await hre.ethers.getContractFactory("MaxStaking");
     const staking0Task = Staking0.deploy(tokenStake.address, tokenReward.address, rewardPeriod, frozenPeriod, 0, decimals);
 
     await expect(staking0Task).to.be.revertedWith("Reward percent should be > 0");
+  });
+
+  it("fails deploy when decimals=0",async () => {
+    const Staking0 = await hre.ethers.getContractFactory("MaxStaking");
+    const staking0Task = Staking0.deploy(tokenStake.address, tokenReward.address, rewardPeriod, frozenPeriod, rewardFor1TokenUnit, 0);
+
+    await expect(staking0Task).to.be.revertedWith("Decimals should be > 0");
   });
 
   // it("changeRewardPeriod success", async () => {

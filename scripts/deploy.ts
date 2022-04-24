@@ -5,7 +5,7 @@ import mnm from "minimist";
 import { formatEther } from "ethers/lib/utils";
 
 async function main() {
-  var argv = mnm(process.argv.slice(2),  { string: ['tokenStake', 'tokenRewards'] });
+  var argv = mnm(process.argv.slice(2),  { string: ['tokenStake', 'tokenRewards', 'rewardFor1TokenUnit'] });
 
   const MaxStaking = await ethers.getContractFactory("MaxStaking");
   const staking = await MaxStaking.deploy(
@@ -13,7 +13,8 @@ async function main() {
     argv.tokenRewards,
     argv.rewardPeriod,
     argv.frozenPeriod,
-    argv.rewardPercent
+    argv.rewardFor1TokenUnit,
+    argv.tokenRewardDecimals
   );
 
   const txRes = await ((await staking.deployed()).deployTransaction).wait();

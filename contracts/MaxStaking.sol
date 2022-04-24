@@ -30,6 +30,7 @@ contract MaxStaking {
         uint tokenRewardDecimals_) {
         require(rewardPeriod_ > 0, "Reward period should be > 0");
         require(rewardFor1TokenUnit_ > 0, "Reward percent should be > 0");
+        require(tokenRewardDecimals_ > 0, "Decimals should be > 0");
 
         owner = msg.sender;
         tokenRewards = IERC20(tokenRewards_);
