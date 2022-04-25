@@ -6,8 +6,6 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "solidity-coverage";
-import { formatEther, formatUnits, parseEther, parseUnits } from "ethers/lib/utils";
-import { BigNumber } from "ethers";
 
 import "./tasks";
 
